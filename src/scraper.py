@@ -1,17 +1,18 @@
 # Raspagem de dados
 
+from src import utils
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from fake_useragent import UserAgent
-import time
+from datetime import datetime
+from bs4 import BeautifulSoup
 
 
 class WebDriverManager:
-    def __init__(self, os='windows', browsers=['chrome', 'edge'], min_percentage=2.0):
-        self.ua = UserAgent(os=os, browsers=browsers,
-                            min_percentage=min_percentage)
+    def __init__(self, os='windows', browsers=['chrome'], min_percentage=2.0):
+        self.ua = UserAgent(os=os, browsers=browsers, min_percentage=min_percentage)
         self.driver = self._initialize_driver()
 
     def _initialize_driver(self):
@@ -21,9 +22,8 @@ class WebDriverManager:
         options = webdriver.ChromeOptions()
         options.add_argument("start-maximized")
         options.add_argument(f'user-agent={user_agent}')
-        # Instânciação do web driver
-        driver = webdriver.Chrome(service=Service(
-            ChromeDriverManager().install()), options=options)
+         # Instânciação do web driver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         return driver
 
 
@@ -32,28 +32,72 @@ class Azul:
         self.driver = driver
 
     def research(self, trip_type, dpt_sitio, arrv_sitio, outb_dpt_dt, currency, inbo_dpt_dt=None):
-        # (task): tratar inputs de data antes de usar
-        if trip_type == 'OW':
-            busca = f'c[0].ds={dpt_sitio}&c[0].std={outb_dpt_dt}&c[0].as={
-                arrv_sitio}&p[0].t=ADT&p[0].c=1&p[0].cp=false&f.dl=3&f.dr=3&cc={currency}'
-        elif trip_type == 'RT':
-            busca = f'c[0].ds={dpt_sitio}&c[0].std={outb_dpt_dt}&c[0].as={arrv_sitio}&c[1].ds={arrv_sitio}&c[1].std={
-                inbo_dpt_dt}&c[1].as={dpt_sitio}&p[0].t=ADT&p[0].c=1&p[0].cp=false&f.dl=3&f.dr=3&cc={currency}'
-
-        url = f'https://www.voeazul.com.br/br/pt/home/selecao-voo?{busca}'
-
+        # Constrói a URL
+        url = self.url_building(trip_type, dpt_sitio, arrv_sitio, outb_dpt_dt, currency, inbo_dpt_dt)
+        
+        # Navega até o site
         self.driver.get(url)
+
+        # Rejeita os cookies
+        self.reject_cookies()
+
+    def url_building(self, trip_type, dpt_sitio, arrv_sitio, outb_dpt_dt, currency, inbo_dpt_dt=None):
+        # Trata os parâmetros de entrada
+        raw_params = {'trip_type':trip_type, 'dpt_sitio':dpt_sitio, 'arrv_sitio':arrv_sitio, 'outb_dpt_dt':outb_dpt_dt, 'currency':currency, 'inbo_dpt_dt':inbo_dpt_dt}
+        # Trata os parâmetros e adiciona um prefixo "_" à chave
+        params = self.format_parameters(raw_params)
+        
+        if params['_trip_type'] == 'OW':
+            search_template = 'c[0].ds={_dpt_sitio}&c[0].std={_outb_dpt_dt}&c[0].as={_arrv_sitio}&p[0].t=ADT&p[0].c=1&p[0].cp=false&f.dl=3&f.dr=3&cc={_currency}'
+            search = search_template.format(**params)
+        elif params['_trip_type'] == 'RT':
+            search_template = f'c[0].ds={_dpt_sitio}&c[0].std={_outb_dpt_dt}&c[0].as={_arrv_sitio}&c[1].ds={_arrv_sitio}&c[1].std={_inbo_dpt_dt}&c[1].as={_dpt_sitio}&p[0].t=ADT&p[0].c=1&p[0].cp=false&f.dl=3&f.dr=3&cc={_currency}'
+            search = search_template.format(**params)
+        else:
+            raise ValueError('O parâmetro trip_type: "{trip_type}" não é aceito!')
+        url = f'https://www.voeazul.com.br/br/pt/home/selecao-voo?{search}'
+
+        return url
+
+    def format_parameters(self, param_dict):
+        treated_params = {}
+        for param, raw in param_dict.items():
+            # Redefine o nome do parâmetro para evitar conflito
+            new_param_name = '_' + param
+
+            if raw is not None:
+                treated = raw.strip().upper()
+                if param in ('outb_dpt_dt', 'inbo_dpt_dt'):
+                    treated = self.convert_date(treated)
+                treated_params[new_param_name] = treated
+            else:
+                treated_params[new_param_name] = treated
+        return treated_params
+    
+    def convert_date(self, date_str):
+        """
+        Converte uma data no formato 'yyyy-mm-dd' para 'mm/dd/yyyy'.
+        """
+        try:
+            # Converte a string para um objeto datetime
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            # Converte o objeto datetime para uma string no formato desejado
+            formatted_date = date_obj.strftime('%m/%d/%Y')
+            return formatted_date
+        except ValueError as e: 
+            raise ValueError("Formato de data inválido. Use 'yyyy-mm-dd'.") from e
+
 
     def reject_cookies(self):
         # (task): Criar validação de existência de cookie
 
-        time.sleep(2)  # Aguarda 2 segundos
+        utils.random_wait(1, 2)  # Aguarda para continuar
         # Seleciona as configurações de cookies
         cookie_setting = self.driver.find_element(
             By.CLASS_NAME, 'cookie-setting-link')
         cookie_setting.click()
 
-        time.sleep(2)  # Aguarda 2 segundos
+        utils.random_wait(1, 2)  # Aguarda para continuar
         # Salva as preferências de cookies (dessabilitadas por padrão)
         save_preference = self.driver.find_element(
             By.CSS_SELECTOR, "[class*='save-preference-btn']")
@@ -98,3 +142,16 @@ class Azul:
 
     def close_driver(self):
         self.driver.quit()
+
+
+# Teste
+
+web_driver_manager = WebDriverManager()
+azul = Azul(web_driver_manager.driver)
+
+azul.research(trip_type='OW', dpt_sitio='SDU', arrv_sitio='MCZ', outb_dpt_dt='2025-01-20', currency='BRL')
+
+flights = azul.capture_flights()
+
+for id, flight in flights.items():
+    print(f'{id} : {flight}')
