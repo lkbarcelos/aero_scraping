@@ -124,29 +124,24 @@ class Azul:
                 break
 
     def capture_flights(self):
-        # (task): Adicionar iteração de varregura dos voos:
-        #   - Verificar voos existentes;
-        #   - Capturar suas informações;
-        #   - Buscar por mais voos;
-        #   - Filtrar IDs de voos não capturados;
-        #   - Repetir a iteração;
+        # Captura o conteúdo HTML da página
+        html_content = self.driver.page_source
+        # Parseia o conteúdo HTML
+        soup = BeautifulSoup(html_content, 'html.parser')
         # Busca pelos cards de voos
-        flights = self.driver.find_elements(By.CLASS_NAME, 'flight-card')
+        flights = soup.find_all(class_='flight-card')
+        # Cria um dicionário para armazenar os detalhes dos voos
         flight_details = {}
         for flight in flights:
-            # (task): Adicionar lógica para capturar os detalhes do voo
             try:
-                id_card = flight.get_attribute('id')
-                leg_info = flight.find_element(
-                    By.CLASS_NAME, 'flight-leg-info').text
-                dept_info = flight.find_element(
-                    By.CSS_SELECTOR, "[class*='departure']").text
-                arrv_info = flight.find_element(
-                    By.CSS_SELECTOR, "[class*='arrival']").text
-                duration_info = flight.find_element(
-                    By.CSS_SELECTOR, "[class*='duration']").text
-                fare_info = flight.find_element(
-                    By.CSS_SELECTOR, "[class*='fare']").text
+                id_card = flight.get_attribute_list('id')[0]
+                leg_info = flight.find(class_='flight-leg-info').text
+                dept_info = flight.find(class_='departure').text
+                arrv_info = flight.find(class_='arrival').text
+                duration_info = flight.find(class_='duration').text
+                fare_info = flight.find(class_='fare').text
+                
+                # (task): Adicionar lógica para capturar os detalhes do voo
 
                 flight_details[id_card] = {
                     'leg': leg_info,
