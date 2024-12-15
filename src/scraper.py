@@ -1,6 +1,6 @@
 # Raspagem de dados
 
-from src import utils
+import utils
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -40,6 +40,9 @@ class Azul:
 
         # Rejeita os cookies
         self.reject_cookies()
+
+        # Carrega mais voos
+        self.load_more()
 
     def url_building(self, trip_type, dpt_sitio, arrv_sitio, outb_dpt_dt, currency, inbo_dpt_dt=None):
         # Trata os parâmetros de entrada
@@ -102,6 +105,23 @@ class Azul:
         save_preference = self.driver.find_element(
             By.CSS_SELECTOR, "[class*='save-preference-btn']")
         save_preference.click()
+
+    def load_more(self):
+        """
+        Realiza a rolagem da barra de rolagem até o final da página e clica em ver mais voos.
+        """
+        while True:
+            try:
+                # Captura o elemento load more
+                load_more = self.driver.find_element(By.ID, 'load-more-button')
+                # Rola até o elemento
+                self.driver.execute_script("arguments[0].scrollIntoView({ behavior: 'smooth', block: 'center' });", load_more)
+                # Clica em uma posição aleatória do elemento
+                utils.click_random_position(self.driver, load_more)
+                # Aguarda para continuar
+                utils.random_wait(2, 3)  
+            except: 
+                break
 
     def capture_flights(self):
         # (task): Adicionar iteração de varregura dos voos:
