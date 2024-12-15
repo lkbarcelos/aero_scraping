@@ -11,17 +11,25 @@ from bs4 import BeautifulSoup
 
 
 class WebDriverManager:
-    def __init__(self, os='windows', browsers=['chrome'], min_percentage=2.0):
-        self.ua = UserAgent(os=os, browsers=browsers, min_percentage=min_percentage)
-        self.driver = self._initialize_driver()
+    def __init__(self, os='windows', browsers=['chrome'], min_percentage=2.0, fake_useragent = True, proxy=None):
+        if fake_useragent:
+            # User egent aleatório, evitando a detecção do robô
+            ua = UserAgent(os=os, browsers=browsers, min_percentage=min_percentage)
+            user_agent = str(ua.random)
+        else:
+            user_agent = None
+        
+        self.driver = self._initialize_driver(user_agent, proxy)
+        
 
-    def _initialize_driver(self):
-        # User egent aleatório, evitando a detecção do robô
-        user_agent = str(self.ua.random)
+    def _initialize_driver(self, user_agent=None, proxy=None):
         # Definição das opções do navegador
         options = webdriver.ChromeOptions()
         options.add_argument("start-maximized")
-        options.add_argument(f'user-agent={user_agent}')
+        if user_agent is not None:
+            options.add_argument(f'user-agent={user_agent}')
+        if proxy is not None:
+            options.add_argument(f'--proxy-server={proxy}')
          # Instânciação do web driver
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         return driver
